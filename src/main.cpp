@@ -4,45 +4,68 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <unistd.h>
+#include <sys/wait.h>
 
 namespace fs = std::filesystem;
 
-std::vector<std::string> getPaths() {
-    std::string path = std::getenv("PATH");
-    std::vector<std::string> pathv;
-    int i = 0;
-    while(i < path.size()) {
-        int end = path.find(':', i);
-        if (end == std::string::npos) {
-            pathv.push_back(path.substr(i));
-            break;
+class PathHandler {
+  public: 
+    static std::vector<std::string> getPaths() {
+        std::string path = std::getenv("PATH");
+        std::vector<std::string> pathv;
+        int i = 0;
+        while(i < path.size()) {
+            int end = path.find(':', i);
+            if (end == std::string::npos) {
+                pathv.push_back(path.substr(i));
+                break;
+            }
+            pathv.push_back(path.substr(i, end-i));
+            i = end+1;
         }
-        pathv.push_back(path.substr(i, end-i));
-        i = end+1;
+        return pathv;
     }
-    return pathv;
-}
 
-bool isCommandInFolder(const std::string &command, const std::string &dir) {
-    for (const auto& entry: fs::directory_iterator(dir)) {
-        std::string name = entry.path();
-        name = name.substr(dir.size()+1);
-        // std::cout << name << '\n';
-        if (name == command) {
-            return true;
+    static bool isCommandInFolder(const std::string &command, const std::string &dir) {
+        for (const auto& entry: fs::directory_iterator(dir)) {
+            std::string name = entry.path();
+            name = name.substr(dir.size()+1);
+            // std::cout << name << '\n';
+            if (name == command) {
+                return true;
+            }
         }
+        return false;
     }
-    return false;
-}
-std::string isCommandInPath(const std::string &command) {
-    std::vector<std::string> path = getPaths();
-    for (const auto& dir: path) {
-        if (isCommandInFolder(command, dir)) {
-            return dir;
+    static std::string isCommandInPath(const std::string &command) {
+        std::vector<std::string> path = getPaths();
+        for (const auto& dir: path) {
+            if (isCommandInFolder(command, dir)) {
+                return dir;
+            }
         }
+        return "";
     }
-    return "";
-}
+};
+
+class commandHandler {
+    public:
+        static void runCommand(std::string command, std::string path) {
+            // input: command should have the following format
+            // /usr/bin/ls
+            pid_t pid = fork();
+            if (pid < 0) {
+                return;
+            } else if (pid == 0) {
+                const char *args[] = {command.c_str(), nullptr};
+                execv(path.c_str(), const_cast<char *const *>(args));
+            } else {
+                int status;
+                wait(&status);
+            }
+        }
+};
 
 class InputHandler {
   public:
@@ -80,8 +103,8 @@ class InputHandler {
         std::string command = input.substr(5);
         if (isBuiltin(command)) {
             std::cout << command << " is a shell builtin" << std::endl;
-        } else if (isCommandInPath(command) != "") {
-            std::string dir = isCommandInPath(command);
+        } else if (PathHandler::isCommandInPath(command) != "") {
+            std::string dir = PathHandler::isCommandInPath(command);
             std::cout << command << " is" <<' ' << dir << '/'<<command << std::endl;
         }
         else {
@@ -107,6 +130,12 @@ void prompt()
     else if (input.find("type ") != std::string::npos) {
         InputHandler::typeHandler(input);
         return;
+    } else if (PathHandler::isCommandInPath(input) != "") {
+        std::string dir = PathHandler::isCommandInPath(input);
+        if (dir != "") {
+            commandHandler::runCommand(input, dir+"/"+input);
+            return;
+        }
     }
     InputHandler::notFoundHandler(input);
 }
