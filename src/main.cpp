@@ -34,7 +34,7 @@ void typeHandler(const std::string &input)
 {
     std::string command = input.substr(5);
     if (checkBuiltin(command)) {
-        std::cout << command << " is a shell builtin." << std::endl;
+        std::cout << command << " is a shell builtin" << std::endl;
     }
     else {
         notFoundHandler(command);
