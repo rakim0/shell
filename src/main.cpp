@@ -111,8 +111,12 @@ class InputHandler {
     static bool isBuiltin(std::string command)
     {
         std::set<std::string> commands =
-            std::set<std::string>({"type", "echo", "exit"});
+            std::set<std::string>({"type", "echo", "exit", "pwd"});
         return commands.find(command) != commands.end();
+    }
+    static void pwdHandler(const std::string &input) {
+        std::cout << fs::current_path().string() << '\n';
+        return;
     }
     static void typeHandler(const std::string &input)
     {
@@ -147,10 +151,12 @@ void prompt()
     else if (command.find("type") != std::string::npos) {
         InputHandler::typeHandler(input);
         return;
-    } else if (PathHandler::isCommandInPath(command) != "") {
-        // get the command up until the first space
-        // rn what's happenning is ls -l
-        // program will try to find ls -l whereas it should've tried to find ls
+    } 
+    else if (command.find("pwd") != std::string::npos) {
+        InputHandler::pwdHandler(command);
+        return;
+    } 
+    else if (PathHandler::isCommandInPath(command) != "") {
         std::string dir = PathHandler::isCommandInPath(command);
         std::string options = InputHandler::getOptions(input);
         if (dir != "") {
