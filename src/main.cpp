@@ -51,15 +51,21 @@ class PathHandler {
 
 class commandHandler {
     public:
-        static void runCommand(std::string command, std::string path) {
+        static void runCommand(std::string command, std::string options, std::string path) {
             // input: command should have the following format
             // /usr/bin/ls
             pid_t pid = fork();
+            // std::cout << command << ' ' << options << ' ' << path << '\n';
             if (pid < 0) {
                 return;
             } else if (pid == 0) {
-                const char *args[] = {command.c_str(), nullptr};
-                execv(path.c_str(), const_cast<char *const *>(args));
+                if (options.empty()) {
+                    const char *args[] = {command.c_str(), nullptr};
+                    execv(path.c_str(), const_cast<char *const *>(args));
+                } else {
+                    const char *args[] = {command.c_str(), options.c_str(), nullptr};
+                    execv(path.c_str(), const_cast<char *const *>(args));
+                }                
             } else {
                 int status;
                 wait(&status);
@@ -69,6 +75,16 @@ class commandHandler {
 
 class InputHandler {
   public:
+    static std::string getCommand(const std::string &input) {
+        return input.substr(0, input.find(' '));
+    }
+    static std::string getOptions(const std::string &input) {
+        int spacePos = input.find(' ');
+        if (spacePos == std::string::npos) {
+            return "";
+        }
+        return input.substr(spacePos+1);
+    }
     static void notFoundHandler(const std::string &command)
     {
         std::cout << command << ": not found" << std::endl;
@@ -120,22 +136,28 @@ void prompt()
 
     std::string input;
     std::getline(std::cin, input);
-    if (input.find("exit ") != std::string::npos) {
+    std::string command = InputHandler::getCommand(input);
+    if (command.find("exit") != std::string::npos) {
         InputHandler::exitHandler(input);
     }
-    else if (input.find("echo ") != std::string::npos) {
+    else if (command.find("echo") != std::string::npos) {
         InputHandler::echoHandler(input);
         return;
     }
-    else if (input.find("type ") != std::string::npos) {
+    else if (command.find("type") != std::string::npos) {
         InputHandler::typeHandler(input);
         return;
-    } else if (PathHandler::isCommandInPath(input) != "") {
-        std::string dir = PathHandler::isCommandInPath(input);
+    } else if (PathHandler::isCommandInPath(command) != "") {
+        // get the command up until the first space
+        // rn what's happenning is ls -l
+        // program will try to find ls -l whereas it should've tried to find ls
+        std::string dir = PathHandler::isCommandInPath(command);
+        std::string options = InputHandler::getOptions(input);
         if (dir != "") {
-            commandHandler::runCommand(input, dir+"/"+input);
+            commandHandler::runCommand(command, options, dir+"/"+command);
             return;
         }
+
     }
     InputHandler::notFoundHandler(input);
 }
