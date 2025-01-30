@@ -55,7 +55,6 @@ class commandHandler {
             // input: command should have the following format
             // /usr/bin/ls
             pid_t pid = fork();
-            // std::cout << command << ' ' << options << ' ' << path << '\n';
             if (pid < 0) {
                 return;
             } else if (pid == 0) {
@@ -156,6 +155,16 @@ void prompt()
         InputHandler::pwdHandler(command);
         return;
     } 
+    else if (command.find("cd") != std::string::npos) {
+        std::string newPath = InputHandler::getOptions(input);
+        if (fs::exists(newPath)) {
+            fs::current_path(newPath);
+        }
+        else {
+            std::cout << "cd: " << newPath << ": No such file or directory" << std::endl;
+        }
+        return;
+    }
     else if (PathHandler::isCommandInPath(command) != "") {
         std::string dir = PathHandler::isCommandInPath(command);
         std::string options = InputHandler::getOptions(input);
@@ -169,13 +178,8 @@ void prompt()
 }
 int main()
 {
-    // Flush after every std::cout / std:cerr
     std::cout << std::unitbuf;
     std::cerr << std::unitbuf;
-    // std::vector<std::string> path = getPaths(); 
-    // for (auto dir: path) {
-    //     std::cout << dir << '\n';
-    // }
     while (1) {
         prompt();
     }
